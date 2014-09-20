@@ -1,0 +1,7 @@
+/dub.selections.json
+/__test__library__
+.dub
+docs.json
+*.o
+*.obj
+*.bkp
