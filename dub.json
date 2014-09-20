@@ -1,0 +1,20 @@
+{
+    "name": "tharsis-despiker",
+    "description": "GUI frontend for Tharsis.prof",
+    "copyright": "Copyright (C) 2014 Ferdinand Majerech",
+    "authors": ["Ferdinand Majerech"],
+    "libs-posix": ["dl", "glfw"],
+    "license": "Boost 1.0",
+    "dependencies": {
+        "dimgui": { "version" : "~master", "path" : "./dimgui" },
+        "glfw-drey": ">=0.0.2",
+        "glwtf-drey": ">=0.0.1",
+    },
+    "buildTypes":
+    {
+        "debug":   { "buildOptions": ["debugMode", "debugInfoC"] },
+        "release": { "buildOptions": ["releaseMode", "optimize", "inline", "noBoundsCheck"] },
+        "profile": { "buildOptions": ["releaseMode", "optimize", "noBoundsCheck", "debugInfoC"] },
+    },
+    "targetName" : "despiker",
+}
