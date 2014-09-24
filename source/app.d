@@ -3,84 +3,49 @@ import std.conv;
 import std.datetime;
 import std.exception;
 import std.file;
+import std.logger;
 import std.path;
-import std.process;
 import std.range;
-import std.regex;
 import std.stdio : writeln, writefln;
 import std.string;
+import std.typecons;
 
-import deimos.glfw.glfw3;
-
-import glad.gl.enums;
-import glad.gl.ext;
-import glad.gl.funcs;
-import glad.gl.loader;
-import glad.gl.types;
-
-import glwtf.input;
-import glwtf.window;
+import platform.inputdevice;
+import platform.videodevice;
 
 import imgui;
 
-import window;
 
-
+/// Despiker GUI.
 struct GUI
 {
-    this(Window window)
+    /// Construct the GUI.
+    this(VideoDevice video, InputDevice input)
     {
-        this.window = window;
-
-        window.on_scroll.strongConnect(&onScroll);
-
-        int width, height;
-        glfwGetWindowSize(window.window, &width, &height);
-        // trigger initial viewport transform.
-        onWindowResize(width, height);
-
-        window.on_resize.strongConnect(&onWindowResize);
-
-        extern(C) static void getUnicode(GLFWwindow* w, uint unicode)
-        {
-            staticUnicode = unicode;
-        }
-        extern(C) static void getKey(GLFWwindow* w, int key, int scancode, int action, int mods)
-        {
-            if(action != GLFW_PRESS) { return; }
-            if(key == GLFW_KEY_ENTER)          { staticUnicode = 0x0D; }
-            else if(key == GLFW_KEY_BACKSPACE) { staticUnicode = 0x08; }
-        }
-        glfwSetCharCallback(window.window, &getUnicode);
-        glfwSetKeyCallback(window.window, &getKey);
+        this.video = video;
+        this.input = input;
     }
 
-    void render()
+    /// GUI update (frame).
+    void update()
     {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        const mouse = input.mouse;
+        ubyte mouseButtons;
 
-        // Mouse states
-        ubyte mousebutton = 0;
-        double mouseX, mouseY;
-        glfwGetCursorPos(window.window, &mouseX, &mouseY);
-        mouseY = windowHeight - mouseY;
+        if(mouse.button(Mouse.Button.Left))   { mouseButtons |= MouseButton.left; }
+        if(mouse.button(Mouse.Button.Right))  { mouseButtons |= MouseButton.right; }
 
-        int leftButton   = glfwGetMouseButton(window.window, GLFW_MOUSE_BUTTON_LEFT);
-        int rightButton  = glfwGetMouseButton(window.window, GLFW_MOUSE_BUTTON_RIGHT);
-        int middleButton = glfwGetMouseButton(window.window, GLFW_MOUSE_BUTTON_MIDDLE);
-        if (leftButton == GLFW_PRESS) { mousebutton |= MouseButton.left; }
+        dchar unicode = 0;
+        imguiBeginFrame(mouse.x, mouse.y, mouseButtons, mouse.wheelYMovement, unicode);
 
-        imguiBeginFrame(cast(int)mouseX, cast(int)mouseY,
-                        mousebutton, mouseScroll, staticUnicode);
-        staticUnicode = 0;
-        if (mouseScroll != 0) { mouseScroll = 0; }
-
+        const int width  = cast(int)video.width;
+        const int height = cast(int)video.height;
 
         import std.math: pow;
         const int margin   = 4;
-        const int sidebarW = max(40, cast(int)(windowWidth.pow(0.75)));
-        const int sidebarH = max(40, windowHeight - 2 * margin);
-        const int sidebarX = max(40, windowWidth - sidebarW - margin);
+        const int sidebarW = max(40, cast(int)(width.pow(0.75)));
+        const int sidebarH = max(40, height - 2 * margin);
+        const int sidebarX = max(40, width - sidebarW - margin);
 
         // The "Actions" sidebar
         {
@@ -90,78 +55,132 @@ struct GUI
         }
 
         imguiEndFrame();
-        imguiRender(windowWidth, windowHeight);
-    }
-
-    // Tells GL what area we are rendering to. In our case, we use the full available
-    // area. Without this, resizing the window would have no effect on rendering.
-    void onWindowResize(int width, int height)
-    {
-        // bottom-left position.
-        enum int x = 0;
-        enum int y = 0;
-        glViewport(x, y, width, height);
-        windowWidth  = width;
-        windowHeight = height;
-    }
-
-    void onScroll(double hOffset, double vOffset)
-    {
-        mouseScroll = -cast(int)vOffset;
+        imguiRender(width, height);
     }
 
 private:
-    Window window;
-    static dchar staticUnicode;
+    /// Video device used to access window size, do manual rendering, etc.
+    VideoDevice video;
+    /// Access to input.
+    InputDevice input;
 
-    int windowWidth;
-    int windowHeight;
-
-    int mouseScroll = 0;
-
+    /// Current position of the sidebar scrollbar.
     int sidebarScroll;
 }
 
+
+import derelict.sdl2.sdl;
+import derelict.opengl3.gl3;
+
+import derelict.util.exception;
+
+/// Load libraries using through Derelict (currently, this is SDL2).
+bool loadDerelict(Logger log)
+{
+    // Load SDL2.
+    try
+    {
+        DerelictSDL2.load();
+        return true;
+    }
+    catch(SharedLibLoadException e) { log.critical("SDL2 not found: ", e.msg); }
+    catch(SymbolLoadException e)
+    {
+        log.critical("Missing SDL2 symbol (old SDL2 version?): ", e.msg);
+    }
+
+    return false;
+}
+
+/// Unload Derelict libraries.
+void unloadDerelict()
+{
+    DerelictSDL2.unload();
+}
+
+/// Initialize the SDL library.
+bool initSDL(Logger log)
+{
+    // Initialize SDL Video subsystem.
+    if(SDL_Init(SDL_INIT_VIDEO) < 0)
+    {
+        // SDL_Init returns a negative number on error.
+        log.critical("SDL Video subsystem failed to initialize");
+        return false;
+    }
+    return true;
+}
+
+/// Deinitialize the SDL library.
+void deinitSDL()
+{
+    SDL_Quit();
+}
+
+/// Initialize the video device (setting video mode and initializing OpenGL).
+bool initVideo(VideoDevice video, Logger log)
+{
+    // Initialize the video device.
+    const width        = 800;
+    const height       = 600;
+    const fullscreen   = No.fullscreen;
+
+    if(!video.initWindow(width, height, fullscreen)) { return false; }
+    if(!video.initGL()) { return false; }
+    video.windowTitle = "Despiker";
+    return true;
+}
+
+
 int main(string[] args)
 {
-    int width = 800, height = 600;
+    if(!loadDerelict(log)) { return 1; }
+    scope(exit)            { unloadDerelict(); }
 
-    auto window = createWindow("Despiker", WindowMode.windowed, width, height);
-    GUI gui = GUI(window);
+    if(!initSDL(log)) { return 1; }
+    scope(exit)       { SDL_Quit(); }
 
-    glfwSwapInterval(1);
+    auto video = scoped!VideoDevice(log);
+    if(!initVideo(video, log)) { return 1; }
+
+    auto input = scoped!InputDevice(&video.height, log);
 
     string fontPath = thisExePath().dirName().buildPath("DroidSans.ttf");
     // string fontPath = thisExePath().dirName().buildPath("GentiumPlus-R.ttf");
-
-    enforce(imguiInit(fontPath, 512));
 
     glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_DEPTH_TEST);
 
-    try while (!glfwWindowShouldClose(window.window))
+    enforce(imguiInit(fontPath, 512));
+
+    scope(exit) { imguiDestroy(); }
+
+    const( char )* verstr = glGetString( GL_VERSION );
+
+    GUI gui = GUI(video, input);
+
+    for(;;)
     {
-        gui.render();
-
-        // Swap front and back buffers
-        window.swap_buffers();
-        // Poll for and process events
-        glfwPollEvents();
-
-        if (window.is_key_down(GLFW_KEY_ESCAPE))
+        input.update();
+        if(input.quit) { break; }
+        // React to window resize events.
+        if(input.resized)
         {
-            glfwSetWindowShouldClose(window.window, true);
+            video.resizeViewport(input.resized.width, input.resized.height);
         }
-    }
-    catch(Exception e)
-    {
-        writeln("CRASH: ", e.to!string);
-    }
 
-    // Clean UI
-    imguiDestroy();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        gui.update();
+
+        // Log GL errors, if any.
+        video.gl.runtimeCheck();
+
+        // Swap the back buffer to the front, showing it in the window.
+        // Outside of the frameLoad zone because VSync could break our profiling.
+        video.swapBuffers();
+    }
 
     return 0;
 }
