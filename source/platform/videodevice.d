@@ -18,7 +18,6 @@ import derelict.sdl2.sdl;
 
 import gfmod.opengl.opengl;
 
-// TODO: Support window resizing. 2014-09-12
 
 /// Manages windowing and GL and provides access to convenience OpenGL wrappers.
 class VideoDevice
@@ -102,7 +101,7 @@ public:
      *
      * See_Also: InputDevice.resized
      */
-    void resizeViewport(int width, int height)
+    void resizeViewport(int width, int height) @system nothrow @nogc
     {
         width_  = width;
         height_ = height;

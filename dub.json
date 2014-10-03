@@ -6,9 +6,19 @@
     "libs-posix": ["dl", "glfw"],
     "license": "Boost 1.0",
     "dependencies": {
-        "dimgui": { "version" : "~master", "path" : "./dimgui" },
-        "glfw-drey": ">=0.0.2",
-        "glwtf-drey": ">=0.0.1",
+        "dimgui": {
+            "version" : "~master", "path" : "./dimgui" 
+        },
+        "derelict-gl3":  ">=1.0.4",
+        "derelict-sdl2": ">=1.2.5",
+        "dyaml":         ">=0.5.0",
+        "gl3n":          "~master",
+        "gfm:math":      "==1.1.8",
+        "logger":        "==0.2.0",
+        "tharsis-prof":  "~>0.3.0"
+    },
+    "subConfigurations": {
+        "dimgui": "derelict-gl-library",
     },
     "buildTypes":
     {
