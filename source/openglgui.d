@@ -198,51 +198,58 @@ private:
     import derelict.sdl2.sdl;
 
     /// Load libraries using through Derelict (currently, this is SDL2).
-    static bool loadDerelict(Logger log)
+    static bool loadDerelict(Logger log) @system nothrow
     {
         import derelict.util.exception;
-        // Load SDL2.
+        // Load (but don't init) SDL2.
         try
         {
             DerelictSDL2.load();
             return true;
         }
-        catch(SharedLibLoadException e) { log.critical("SDL2 not found: ", e.msg); }
+        catch(SharedLibLoadException e)
+        {
+            log.critical("SDL2 not found: ", e.msg).assumeWontThrow;
+        }
         catch(SymbolLoadException e)
         {
-            log.critical("Missing SDL2 symbol (old SDL2 version?): ", e.msg);
+            log.critical("Missing SDL2 symbol (old SDL2 version?): ", e.msg).assumeWontThrow;
+        }
+        catch(Exception e)
+        {
+            assert(false, "Unexpected exception in DerelictSDL2.load()");
         }
 
         return false;
     }
 
     /// Unload Derelict libraries.
-    static void unloadDerelict()
+    static void unloadDerelict() @system nothrow
     {
-        DerelictSDL2.unload();
+        DerelictSDL2.unload().assumeWontThrow;
     }
 
     /// Initialize the SDL library.
-    static bool initSDL(Logger log)
+    static bool initSDL(Logger log) @system nothrow
     {
         // Initialize SDL Video subsystem.
         if(SDL_Init(SDL_INIT_VIDEO) < 0)
         {
             // SDL_Init returns a negative number on error.
-            log.critical("SDL Video subsystem failed to initialize");
+            log.critical("SDL Video subsystem failed to initialize").assumeWontThrow;
             return false;
         }
         return true;
     }
 
     /// Deinitialize the SDL library.
-    static void deinitSDL()
+    static void deinitSDL() @system nothrow @nogc
     {
         SDL_Quit();
     }
 
     /// Initialize the video device (setting video mode and initializing OpenGL).
-    static bool initVideo(VideoDevice video_, Logger log)
+    static bool initVideo(VideoDevice video_, Logger log) @system nothrow
     {
         // Initialize the video device.
         const width        = 800;
