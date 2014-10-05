@@ -11,6 +11,7 @@ module despiker.despiker;
 import std.algorithm;
 import std.array;
 import std.stdio;
+import std.typecons;
 
 import tharsis.prof;
 
@@ -32,7 +33,7 @@ class DespikerException : Exception
 
 /** Despiker front-end, designed to be trivially controlled through a GUI.
  *
- * The Despiker class provides methods that should directly be called from the GUI 
+ * The Despiker class provides methods that should directly be called from the GUI
  * (e.g. from button presses), so that GUI implementation can be as simple as possible.
  */
 class Despiker
@@ -77,7 +78,7 @@ public:
     //       data for all 7 frames'.
     //
     //       We should add support for interruptions in threads or frames 'not lining up',
-    //       e.g. if we didn't receive frames 3 and 4 from thread 1, but did receive 
+    //       e.g. if we didn't receive frames 3 and 4 from thread 1, but did receive
     //       frame 5, we correctly align frame 5 with a frame from thread 0 that occured
     //       at the same time (today, we would assume frame 5 is the frame 3 that we
     //       didn't receive - lining the frames up incorrectly).  2014-10-02
@@ -96,7 +97,7 @@ private:
     alias Events = ChunkyEventList.Slice;
 
     // Zone ranges (one per thread) currently being viewed in the GUI.
-    ZoneRange!Events[] view_;
+    Tuple!(FrameInfo, ZoneRange!Events)[] view_;
 
     // In manual mode, this is the index of the frame we're currently viewing.
     size_t manualFrameIndex_ = 0;
@@ -166,22 +167,22 @@ public:
         view_.length = threadCount;
         foreach(thread; 0 .. threadCount)
         {
-            ChunkyEventList.SliceExtents slice;
+            FrameInfo frame;
             final switch(mode_)
             {
                 case Mode.NewestFrame:
                     // View the last frame we have profiling data from all threads for.
-                    slice = backend_.frames(thread)[frameCount - 1];
+                    frame = backend_.frames(thread)[frameCount - 1];
                     break;
                 case Mode.Manual:
                     // View the manually-selected frame.
-                    slice = backend_.frames(thread)[manualFrameIndex_];
+                    frame = backend_.frames(thread)[manualFrameIndex_];
                     break;
             }
 
             // Add to view a zone range to generate zones of viewed frame for this thread.
-            Events events = backend_.events(thread).slice(slice);
-            view_[thread] = ZoneRange!Events(events);
+            Events events = backend_.events(thread).slice(frame.extents);
+            view_[thread] = tuple(frame, ZoneRange!Events(events));
         }
     }
 
@@ -189,11 +190,12 @@ public:
      *
      * Used by the GUI to generate zones to display.
      *
-     * Returns: An array of zone ranges. view()[0] is a range of zones in currently viewed
-     *          frame in profiled thread 0, view()[1] in thread 1, and so on.
-     *          The zone ranges are const, and must be copied/save()d for iteration.
+     * Returns: An array of frame infos tupled with zone ranges. view()[0][1] is a range
+     *          of zones in currently viewed frame in profiled thread 0, view()[1][1] in
+     *          thread 1, and so on. The zone ranges are const, and must be copied/save()d
+     *          for iteration.
      */
-    const(ZoneRange!Events)[] view() @safe pure nothrow const @nogc
+    const(Tuple!(FrameInfo, ZoneRange!Events))[] view() @safe pure nothrow const @nogc
     {
         return view_;
     }
@@ -288,34 +290,29 @@ public:
         size_t worstDuration = 0;
         // Index of the worst frame.
         size_t worstFrame = 0;
-        // In each frame, get the time of the worst thread, and get the maximum of that.
-        foreach(frame; 0 .. frameCount)
+        // In each frame, get the total duration for all threads, then get the max of that.
+        foreach(f; 0 .. frameCount)
         {
-            size_t frameDuration = 0;
+            // Get the real start/end time of the frame containing execution in all threads.
+            ulong start = ulong.max;
+            ulong end = ulong.min;
             foreach(thread; 0 .. backend_.threadCount)
             {
-                // TODO: If too slow, store frame durations in Backend.ThreadState.frames
-                //       (use a larger struct wrapping ChunklyEventList.SliceExtents). If
-                //       even that is too slow, let Backend keep track of e.g. worst
-                //       frame in each second. 2014-09-29
-
-                // Generates all events in this thread for this frame.
-                auto events = backend_.events(thread).slice(backend_.frames(thread)[frame]);
-                // The last zone (the one that ends last) in the slice is the frame
-                ZoneData lastZone;
-                foreach(zone; ZoneRange!(ChunkyEventList.Slice)(events)) { lastZone = zone; }
-                frameDuration = max(frameDuration, lastZone.duration);
+                const frame = backend_.frames(thread)[f];
+                start = min(start, frame.startTime);
+                end   = max(end,   frame.endTime);
             }
+            const frameDuration = end - start;
 
             if(frameDuration > worstDuration)
             {
-                worstFrame    = frame;
+                worstFrame    = f;
                 worstDuration = frameDuration;
             }
         }
 
         // Look at the worst frame.
-        frame = worstFrame;
+        frame(worstFrame);
     }
 
     /// Get the number of frames for which we have profiling data from all threads.

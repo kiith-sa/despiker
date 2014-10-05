@@ -24,6 +24,27 @@ import despiker.profdatasource: ProfileDataChunk;
 enum maxThreads = 1024;
 
 
+/** Information about a 'frame zone' - stored in a random access array.
+ *
+ * All frames are stored in a random-access array for quick access, so this should be
+ * as small as possible to avoid wasting memory.
+ */
+struct FrameInfo
+{
+    // Slice extents to get a slice of all events in the frame from ChunkyEventList.
+    ChunkyEventList.SliceExtents extents;
+    // Start time of the frame in hnsecs.
+    ulong startTime;
+    // Duration of the frame in hnsecs.
+    ulong duration;
+
+    // End time of the frame in hnsecs.
+    ulong endTime() @safe pure nothrow const @nogc
+    {
+        return startTime + duration;
+    }
+}
+
 /** Despiker backend.
  *
  * Handles storage of, processing of and access to profile data.
@@ -47,11 +68,11 @@ private:
         ChunkyEventList eventList;
         /// Generates zones from events in eventList on-the-fly as new chunks are added.
         ChunkyZoneGenerator zoneGenerator;
-        /** Stores slice extents for frame zones (as determined by Backend.frameFilter_).
+        /** Stores information about frame zones (as determined by Backend.frameFilter_).
          *
          * Used to regenerate all events in a frame.
          */
-        ChunkyEventList.SliceExtents[] frames;
+        FrameInfo[] frames;
     }
 
     /// Thread state for all profiled thread.
@@ -122,14 +143,13 @@ public:
         return threads_.length;
     }
 
-    /** Get access to ChunkyEventList slice extents for all frames in specified profiled thread.
+    /** Get access to frame info for all frames in specified profiled thread.
      *
      * Params:
      *
      * threadIdx = Index of the thread. Must be less than threadCount().
      */
-    const(ChunkyEventList.SliceExtents)[] frames(size_t threadIdx)
-        @safe pure nothrow const @nogc
+    const(FrameInfo)[] frames(size_t threadIdx) @safe pure nothrow const @nogc
     {
         return threads_[threadIdx].frames;
     }
@@ -161,7 +181,7 @@ public:
             while(thread.zoneGenerator.generate(zone)) if(frameFilter_(zone))
             {
                 thread.frames.assumeSafeAppend();
-                thread.frames ~= zone.extents;
+                thread.frames ~= FrameInfo(zone.extents, zone.startTime, zone.duration);
             }
         }
     }
@@ -223,8 +243,9 @@ unittest
     foreach(ref thread; backend.threads_)
     {
         auto frameZones = profiler.profileData.zoneRange.filter!filterFrames;
-        foreach(extents; thread.frames)
+        foreach(frame; thread.frames)
         {
+            const extents = frame.extents;
             const expectedFrameZone = frameZones.front;
 
             auto zonesInSlice = ZoneRange!ChunkyEventSlice(thread.eventList.slice(extents));
