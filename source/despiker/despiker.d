@@ -246,11 +246,13 @@ public:
     {
         final switch(mode_)
         {
-            case Mode.NewestFrame: 
+            case Mode.NewestFrame:
                 mode_ = Mode.Manual;
-                manualFrameIndex_ = max(frameCount - 1, rhs);
+                manualFrameIndex_ = min(frameCount - 1, rhs);
                 break;
-            case Mode.Manual: break;
+            case Mode.Manual:
+                manualFrameIndex_ = min(frameCount - 1, rhs);
+                break;
         }
     }
 
