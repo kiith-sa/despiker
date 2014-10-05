@@ -39,28 +39,51 @@ abstract class DespikerGUI
     void run() @safe nothrow;
 }
 
-/** Default (and at the moment, only) Despiker GUI, based on SDL and OpenGL, using dimgui.
- */
+/// Default (and at the moment, only) Despiker GUI, based on SDL and OpenGL, using dimgui.
 class OpenGLGUI: DespikerGUI
 {
 private:
-    /// Video device used to access window size, do manual rendering, etc.
+    // Video device used to access window size, do manual rendering, etc.
     VideoDevice video_;
-    /// Access to input.
+    // Access to input.
     InputDevice input_;
 
-    /// Main log.
+    // Main log.
     Logger log_;
 
-    /// Despiker implementation.
+    // Despiker implementation.
     Despiker despiker_;
 
-    /// Current position of the sidebar scrollbar.
-    int sidebarScroll;
+    // GUI layout.
+    Layout layout_;
+
+    // Renders the viewed zone graphs.
+    ViewRenderer view_;
+
+    // Current positions of scroll area scrollbars.
+    int sidebarScroll, sideinfoScroll;
+
+    // Buffer to store goToFrame_ text input.
+    char[9] goToFrameBuf_;
+    // Entered text of the 'Go to Frame' text input.
+    char[] goToFrame_;
+
+    // Used to override default imgui color scheme. Currently only passed to scroll areas.
+    ColorScheme guiScheme_;
+
+    // Current zoom exponent. Mouse wheel and the -/= keys affect this.
+    //
+    // 0 means no zoom. The actual zoom is 1.25 ^ zoomExponent_.
+    int zoomExponent_ = 0;
+
+    // Panning value. RMB dragging and A/D keys affect this.
+    //
+    // Higher means the view is shifted to the left; lower to the right.
+    // Independent of zoom; the same value of pan_ will result on the view being centered
+    // at the same location regardless of zoom.
+    double pan_ = 0;
 
 public:
-// TODO: GUI should provide access for modifying frame info/nest level.   2014-10-02
-
     /** Construct the GUI.
      *
      * Params:
@@ -68,59 +91,50 @@ public:
      * log      = Main program log.
      * despiker = Despiker implementation.
      */
-    this(Logger log, Despiker despiker)
+    this(Logger log, Despiker despiker) @trusted
     {
-        log_ = log;
-        enforce(loadDerelict(log_),
-                new GUIException("Failed to initialize GUI: failed to load Derelict"));
+        log_      = log;
+        despiker_ = despiker;
+        layout_   = new Layout();
+
+        // Init Derelict and SDL.
+        enum baseMsg = "Failed to initialize GUI: failed to";
+        enforce(loadDerelict(log_), new GUIException(baseMsg ~ "load Derelict"));
         scope(failure) { unloadDerelict(); }
-        enforce(initSDL(log_),
-                new GUIException("Failed to initialize GUI: failed to initialize SDL"));
+        enforce(initSDL(log_), new GUIException(baseMsg ~ "initialize SDL"));
         scope(failure) { deinitSDL(); }
 
+        // Init video and input.
         video_ = new VideoDevice(log_);
         scope(failure) { destroy(video_); }
-        enforce(initVideo(video_, log_),
-                new GUIException("Failed to initialize GUI: failed to initialize VideoDevice"));
+        enforce(initVideo(video_, log_), new GUIException(baseMsg ~ "initialize VideoDevice"));
         input_ = new InputDevice(&video_.height, log_);
         scope(failure) { destroy(input_); }
 
-        despiker_ = despiker;
-
-        glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
+        // Prepare GL state for GUI drawing.
+        glClearColor(0.25f, 0.25f, 0.25f, 0.25f);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_DEPTH_TEST);
 
-        import std.file: thisExePath, exists, isFile;
-        import std.path: dirName, buildPath;
+        // We only override the scroll area color scheme (to remove transparency).
+        guiScheme_ = defaultColorScheme;
+        guiScheme_.scroll.area.back = RGBA(32, 32, 32, 255);
 
-        string[] fontDirs = [thisExePath().dirName()];
-        // For (eventual) root Despiker installations.
-        version(linux) { fontDirs ~= "/usr/share/despiker"; }
+        goToFrame_ = goToFrameBuf_[0 .. 0];
 
-        // Find the font, and when found, init dimgui.
-        enum fontName = "DroidSans.ttf";
-        foreach(dir; fontDirs)
-        {
-            const fontPath = dir.buildPath(fontName);
-            if(!fontPath.exists || !fontPath.isFile) { continue; }
+        view_ = new ViewRenderer(video_, log_, layout_);
+        scope(failure) { destroy(view_); }
 
-            enforce(imguiInit(fontPath, 512),
-                    new GUIException("Failed to initialize GUI: failed to initialize imgui"));
-            scope(failure) { imguiDestroy(); }
-            return;
-        }
-
-        import std.string: format;
-        throw new GUIException("Despiker font %s not found in any of expected directories: %s"
-                               .format(fontName, fontDirs));
+        enforce(imguiInit(findFont(), 512), new GUIException(baseMsg ~ "initialize imgui"));
+        scope(failure) { imguiDestroy(); }
     }
 
     /// Destroy the GUI. Must be called to properly free GL resources.
-    ~this()
+    ~this() @trusted
     {
         imguiDestroy();
+        destroy(view_);
         destroy(input_);
         destroy(video_);
         SDL_Quit();
@@ -132,17 +146,18 @@ public:
     {
         for(;;)
         {
+            // Get keyboard/mouse input.
             input_.update();
-            despiker_.update();
-
             if(input_.quit) { break; }
-
             // React to window resize events.
             if(input_.resized)
             {
                 video_.resizeViewport(input_.resized.width, input_.resized.height);
             }
 
+            // Update the Despiker.
+            despiker_.update();
+            // Update the GUI.
             update();
 
             // Log GL errors, if any.
@@ -154,45 +169,139 @@ public:
         }
     }
 
+
 private:
     /// GUI update (frame).
-    void update() nothrow
+    void update() @system nothrow
     {
-        import std.algorithm;
         // Clear the screen.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Get mouse input.
+        // Get mouse input and pass it to imgui.
         const mouse = input_.mouse;
         ubyte mouseButtons;
-
-        if(mouse.button(Mouse.Button.Left))   { mouseButtons |= MouseButton.left; }
-        if(mouse.button(Mouse.Button.Right))  { mouseButtons |= MouseButton.right; }
+        if(mouse.button(Mouse.Button.Left))  { mouseButtons |= MouseButton.left; }
+        if(mouse.button(Mouse.Button.Right)) { mouseButtons |= MouseButton.right; }
 
         const int width  = cast(int)video_.width;
         const int height = cast(int)video_.height;
 
-        imguiBeginFrame(mouse.x, mouse.y, mouseButtons, mouse.wheelYMovement,
-                        input_.unicode).assumeWontThrow;
+        // Start drawing the GUI.
+        imguiBeginFrame(mouse.x, mouse.y, mouseButtons, mouse.wheelYMovement, input_.unicode)
+                       .assumeWontThrow;
         scope(exit)
         {
             imguiEndFrame().assumeWontThrow;
             imguiRender(width, height).assumeWontThrow;
         }
+        layout_.update(width, height);
 
+        // Get the real start/end time of the frame containing execution in all threads.
+        const start = despiker_.view.map!(v => v[0].startTime).reduce!min.assumeWontThrow;
+        const end   = despiker_.view.map!(v => v[0].endTime).reduce!max.assumeWontThrow;
+        const duration = end - start;
 
-        import std.math: pow;
-        const int margin   = 4;
-        const int sidebarW = max(40, cast(int)(width.pow(0.75)));
-        const int sidebarH = max(40, height - 2 * margin);
-        const int sidebarX = max(40, width - sidebarW - margin);
+        // Get input for the ViewRenderer (zooming, panning).
+        getViewInput();
+        // Draw the view first so any widgets are on top of it.
+        view_.startDrawing(zoom, pan_, start, duration);
+        foreach(ref threadView; despiker_.view) { view_.drawThread(threadView[1].save); }
+        view_.endDrawing();
 
-        // The "Actions" sidebar
+        // Sidebars rendering and input.
+        actionsSidebar().assumeWontThrow();
+        infoSidebar(start, duration).assumeWontThrow;
+    }
+
+    /// Get input for the view renderer (zooming and panning).
+    void getViewInput() @safe pure nothrow @nogc
+    {
+        const kb    = input_.keyboard;
+        const mouse = input_.mouse;
+
+        // Zooming ('=' is the same key as '+' on most (at least QWERTY) keyboards).
+        const zoomKb = (kb.pressed(Key.Equals) ? 1 : 0) + (kb.pressed(Key.Minus) ? -1 : 0);
+        zoomExponent_ = min(32, max(-8, zoomExponent_ + mouse.wheelYMovement + zoomKb));
+        // Panning
+        pan_ -= 128 * ((kb.pressed(Key.D) ? 1 : 0) + (kb.pressed(Key.A) ? -1 : 0)) / zoom;
+        if(mouse.button(Mouse.Button.Right)) { pan_ += mouse.xMovement / zoom; }
+    }
+
+    /** Render (and handle input from) the actions sidebar.
+     *
+     * While not nothrow, actionsSidebar() should be assumed to never throw.
+     */
+    void actionsSidebar() @trusted
+    {
+        // The actions sidebar.
+        with(layout_)
         {
-            imguiBeginScrollArea("Actions", sidebarX, margin, sidebarW, sidebarH,
-                                 &sidebarScroll).assumeWontThrow;
-            scope(exit) { imguiEndScrollArea().assumeWontThrow; }
+            imguiBeginScrollArea("Actions", sidebarX, sidebarY, sidebarW, sidebarH,
+                                 &sidebarScroll, guiScheme_);
         }
+        scope(exit) { imguiEndScrollArea(); }
+
+        // Draws a button with a key shortcut to do the same action.
+        auto button = (string text, Key key) =>
+                      imguiButton(text) || input_.keyboard.pressed(key);
+        final switch(despiker_.mode)
+        {
+            case Despiker.Mode.NewestFrame:
+                if(button("Pause <Space>",   Key.Space)) { despiker_.pause(); }
+                if(button("Worst Frame <1>", Key.One))   { despiker_.worstFrame(); }
+                break;
+            case Despiker.Mode.Manual:
+                if(button("Resume <Space>",     Key.Space)) { despiker_.resume(); }
+                if(button("Next Frame <L>",     Key.L))     { despiker_.nextFrame(); }
+                if(button("Previous Frame <H>", Key.H))     { despiker_.previousFrame(); }
+                if(button("Worst Frame <1>",    Key.One))   { despiker_.worstFrame(); }
+                try if(imguiTextInput("Jump", goToFrameBuf_, goToFrame_))
+                {
+                    import std.conv;
+                    scope(exit) { goToFrame_ = goToFrameBuf_[0 .. 0]; }
+                    despiker_.frame = to!size_t(goToFrame_);
+                }
+                catch(Exception e)
+                {
+                    log_.info("Invalid 'Go to Frame' input from user (expected "
+                              "number, got " ~ goToFrame_);
+                }
+                break;
+        }
+    }
+
+    /** Render the info sidebar.
+     *
+     * Params:
+     *
+     * start    = Start time of the currently viewed frame.
+     * duration = Duration of the currently viewed frame.
+     *
+     * While not nothrow, infoSidebar() should be assumed to never throw.
+     */
+    void infoSidebar(ulong start, ulong duration) @trusted
+    {
+        // The info sidebar.
+        with(layout_)
+        {
+            imguiBeginScrollArea("Info", sideinfoX, sideinfoY, sideinfoW, sideinfoH,
+                                 &sideinfoScroll, guiScheme_);
+        }
+        scope(exit) { imguiEndScrollArea(); }
+
+        const frame = despiker_.frame;
+        const noFrame = frame == size_t.max;
+
+        imguiLabel("Frame: " ~ (noFrame ? "N/A" : "%s".format(frame)));
+        imguiLabel("Duration: " ~ (noFrame ? "N/A" : "%.2fms".format(duration * 0.0001)));
+        imguiLabel("Start: " ~ (noFrame ? "N/A" : "%.5fs".format(start * 0.0000001)));
+        imguiLabel("Frames: %s".format(despiker_.frameCount));
+    }
+
+    /// Get the current zoom ratio (not exponent).
+    double zoom() @safe pure nothrow const @nogc
+    {
+        return pow(1.25, zoomExponent_);
     }
 
     import derelict.sdl2.sdl;
