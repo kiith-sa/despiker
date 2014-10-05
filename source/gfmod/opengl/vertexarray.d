@@ -353,7 +353,8 @@ public:
 
         if(program !is lastProgram_)
         {
-            import tharsis.util.traits: FieldNamesTuple;
+            // Temp, until we have a tharsis.util package.
+            import gfmod.opengl.uniform: FieldNamesTuple;
             alias fieldNames = FieldNamesTuple!V;
 
             // Need to check if we have all attribs before we start messing with the

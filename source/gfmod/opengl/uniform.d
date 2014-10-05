@@ -46,7 +46,7 @@ bool isUniformSpec(Spec)()
 
 // Manually copied from tharsis-core to avoid a dependency.
 /// Get a compile-time tuple containing names of all fields in a struct.
-private template FieldNamesTuple(S)
+package template FieldNamesTuple(S)
     if(is(S == struct))
 {
     /// Determine if a member with specified name is a field of S.
