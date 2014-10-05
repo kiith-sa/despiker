@@ -200,6 +200,12 @@ public:
         return view_;
     }
 
+    /// Get the current despiker mode.
+    Mode mode() @safe pure nothrow const @nogc
+    {
+        return mode_;
+    }
+
     /** Move to the next frame in manual mode. If newest frame mode, acts as pause().
      *
      * Should be directly triggered by a 'next frame' button.
@@ -248,11 +254,22 @@ public:
         }
     }
 
+    /// Get the index of the currently viewed frame. If there are 0 frames, returns size_t.max.
+    size_t frame() @safe pure nothrow const @nogc
+    {
+        if(frameCount == 0) { return size_t.max; }
+        final switch(mode_)
+        {
+            case Mode.NewestFrame: return frameCount - 1;
+            case Mode.Manual:      return manualFrameIndex_;
+        }
+    }
+
     /** Set mode to 'manual', pausing at the current frame. In manual mode, does nothing.
      *
      * Should be directly triggered by a 'pause' button.
      */
-    void pause() @safe pure nothrow @nogc 
+    void pause() @safe pure nothrow @nogc
     {
         frame = frameCount - 1;
     }
@@ -271,7 +288,7 @@ public:
     }
 
     // TODO: Add API for worst frame for thread 0,1,etc. (worstFrameInThread?), worst
-    //       frame by sum of all threads (worstFrameSumThreads?), and frame with worst 
+    //       frame by sum of all threads (worstFrameSumThreads?), and frame with worst
     //       zone according to some filter (e.g. Tharsis: slowest RenderProcess run)
     //       - figure out GUI for that
     //       2014-09-29
