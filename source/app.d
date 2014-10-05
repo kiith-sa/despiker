@@ -1,4 +1,4 @@
-import std.logger;
+import std.experimental.logger;
 import std.typecons: scoped;
 
 import despiker.despiker;
@@ -8,7 +8,7 @@ import openglgui;
 int main(string[] args)
 {
     auto despiker = scoped!Despiker();
-    auto log = defaultLogger;
+    auto log = stdlog;
 
     try
     {

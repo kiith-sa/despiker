@@ -9,7 +9,7 @@ module platform.videodevice;
 
 import std.algorithm;
 import std.exception;
-import std.logger;
+import std.experimental.logger;
 import std.typecons;
 
 import derelict.opengl3.gl3;

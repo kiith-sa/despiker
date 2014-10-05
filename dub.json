@@ -14,7 +14,7 @@
         "dyaml":         ">=0.5.0",
         "gl3n":          "~master",
         "gfm:math":      "==1.1.8",
-        "logger":        "==0.2.0",
+        "logger":        "==0.2.9",
         "tharsis-prof":  "~>0.3.0"
     },
     "subConfigurations": {

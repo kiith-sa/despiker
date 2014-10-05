@@ -11,7 +11,7 @@ import std.string,
 import derelict.util.exception,
        derelict.opengl3.gl3;
 
-import std.logger;
+import std.experimental.logger;
 
 import gfmod.core.text,
        gfmod.opengl.textureunit;

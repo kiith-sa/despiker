@@ -11,7 +11,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.exception;
-import std.logger;
+import std.experimental.logger;
 
 import derelict.sdl2.sdl;
 

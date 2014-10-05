@@ -8,7 +8,7 @@
 module openglgui;
 
 import std.exception: enforce, assumeWontThrow;
-import std.logger;
+import std.experimental.logger;
 
 import derelict.opengl3.gl3;
 
