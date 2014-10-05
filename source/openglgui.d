@@ -252,8 +252,8 @@ private:
     static bool initVideo(VideoDevice video_, Logger log) @system nothrow
     {
         // Initialize the video device.
-        const width        = 800;
-        const height       = 600;
+        const width        = 1024;
+        const height       = 768;
         import std.typecons;
         const fullscreen   = No.fullscreen;
 
