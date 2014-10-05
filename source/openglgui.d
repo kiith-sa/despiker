@@ -196,6 +196,32 @@ private:
     }
 
     import derelict.sdl2.sdl;
+    /** Find the font file to use for text drawing and return its filename.
+     *
+     * Throws: GUIException on failure.
+     */
+    static string findFont() @trusted
+    {
+        import std.file: thisExePath, exists, isFile;
+        import std.path: dirName, buildPath;
+
+        string[] fontDirs = [thisExePath().dirName()];
+        // For (eventual) root Despiker installations.
+        version(linux) { fontDirs ~= "/usr/share/despiker"; }
+
+        // Find the font in fontDirs.
+        enum fontName = "DroidSans.ttf";
+        auto found = fontDirs.map!(dir => dir.buildPath(fontName))
+                             .find!(p => p.exists && p.isFile);
+        if(!found.empty) { return found.front; }
+        foreach(path; fontDirs.map!(dir => dir.buildPath(fontName)))
+        {
+            if(path.exists && path.isFile) { return path; }
+        }
+
+        throw new GUIException("Despiker font %s not found in any of expected directories: %s"
+                               .format(fontName, fontDirs));
+    }
 
     /// Load libraries using through Derelict (currently, this is SDL2).
     static bool loadDerelict(Logger log) @system nothrow
