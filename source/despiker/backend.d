@@ -132,7 +132,8 @@ public:
             // TODO If needed, delete old chunkBuffer here  2014-10-02
             if(!eventList.addChunk(chunk.data))
             {
-                assert(false, "Can't add chunk even after providing more space");
+                assert(false, "Can't add chunk; probably start time lower than end time "
+                              "of last chunk");
             }
         }
     }
