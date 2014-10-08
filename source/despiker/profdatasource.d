@@ -72,15 +72,12 @@ class ProfDataSourceException : Exception
  *
  * The 'protocol' for sending profiling data through stdin:
  *
- * Profiling data is sent in varying-size chunks. Each chunk starts by a header:
+ * Profiling data is sent in varying-size chunks with the following structure:
  * --------------------
  * uint threadIdx; // Index of the profiled thread (when using multiple per-thread Profilers)
  * uint byteCount; // Size of profiling data in the chunk, in bytes
+ * ubyte[byteCount]; data; // Profiling data itself.
  * --------------------
- *
- * The header is followed by byteCount bytes of profiling data.
- *
- * This may be followed by the header of another chunk, and its profiling data, etc.
  */
 class ProfDataSourceStdin: ProfDataSource
 {
