@@ -196,21 +196,29 @@ private:
         }
         layout_.update(width, height);
 
-        // Get the real start/end time of the frame containing execution in all threads.
-        const start = despiker_.view.map!(v => v[0].startTime).reduce!min.assumeWontThrow;
-        const end   = despiker_.view.map!(v => v[0].endTime).reduce!max.assumeWontThrow;
-        const duration = end - start;
+        import std.array: empty;
+        const view   = despiker_.view;
+        const noView = view.empty;
 
-        // Get input for the ViewRenderer (zooming, panning).
-        getViewInput();
-        // Draw the view first so any widgets are on top of it.
-        view_.startDrawing(zoom, pan_, start, duration);
-        foreach(ref threadView; despiker_.view) { view_.drawThread(threadView[1].save); }
-        view_.endDrawing();
+        if(!noView)
+        {
+            // Get the real start/end time of the frame containing execution in all threads.
+            const start = view.map!(v => v[0].startTime).reduce!min.assumeWontThrow;
+            const end   = view.map!(v => v[0].endTime).reduce!max.assumeWontThrow;
+            const duration = end - start;
+
+            // Get input for the ViewRenderer (zooming, panning).
+            getViewInput();
+            // Draw the view first so any widgets are on top of it.
+            view_.startDrawing(zoom, pan_, start, duration);
+            foreach(ref threadView; view) { view_.drawThread(threadView[1].save); }
+            view_.endDrawing();
+
+            infoSidebar(start, duration).assumeWontThrow;
+        }
 
         // Sidebars rendering and input.
         actionsSidebar().assumeWontThrow();
-        infoSidebar(start, duration).assumeWontThrow;
     }
 
     /// Get input for the view renderer (zooming and panning).
