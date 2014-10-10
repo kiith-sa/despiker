@@ -105,7 +105,7 @@ public:
     void addChunk(ProfileDataChunk chunk) @system nothrow
     {
         const tid = chunk.threadId;
-        assert(tid < maxThreads, "No more than 1024 threads are supported");
+        assert(tid <= maxThreads, "No more than 1024 threads are supported");
 
         // If we were unaware of this thread till now, add thread state for it.
         while(tid >= threads_.length)
