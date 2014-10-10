@@ -10,7 +10,7 @@ module despiker.profdatasource;
 
 import core.time;
 import std.stdio;
-import std.exception: assumeWontThrow;
+import std.exception: assumeWontThrow, ErrnoException;
 
 
 import despiker.backend;
@@ -115,6 +115,7 @@ public:
     {
         // Tell the reader thread to quit.
         send(readerTid_, Yes.quit).assumeWontThrow;
+        stdin.close().assumeWontThrow;
     }
 
     override bool receiveChunk(out ProfileDataChunk chunk) @system nothrow
@@ -151,7 +152,9 @@ private:
         // Chunk data is read from stdin to here.
         auto chunkReadBuffer = new ubyte[16 * 1024];
 
-        for(;;)
+        scope(exit) { writeln("ProfDataSourceStdin: reader thread exit"); }
+
+        try for(;;)
         {
             // Check if the main thread has told us to quit.
             Flag!"quit" quit;
@@ -177,6 +180,24 @@ private:
             // Send the chunk. Make a copy since chunkReadBuffer will be overwritten with
             // the next read chunk.
             send(owner, ProfileDataChunk(threadIdx, newProfileData[].idup)).assumeWontThrow;
+        }
+        // The quit message should be enough, but just to be sure handle the case when
+        // the main thread is terminated but we don't get the quit message (e.g. on an
+        // error in the main thread?)
+        catch(OwnerTerminated e)
+        {
+            return;
+        }
+        catch(ErrnoException e)
+        {
+            // We occasionally get bad file descriptor when reading stdin fails after
+            // the parent thread is closed. Probably no way to fix this cleanly, so we
+            // just ignore it.
+            return;
+        }
+        catch(Throwable e)
+        {
+            writeln("ProfDataSourceStdin: unexpected exception in reader thread:\n", e);
         }
     }
 }
