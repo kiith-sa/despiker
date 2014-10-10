@@ -1,24 +1,22 @@
 {
-    "name": "tharsis-despiker",
-    "description": "GUI frontend for Tharsis.prof",
+    "name": "despiker",
+    "description": "Real-time frame-based profiler for D",
     "copyright": "Copyright (C) 2014 Ferdinand Majerech",
     "authors": ["Ferdinand Majerech"],
     "libs-posix": ["dl", "glfw"],
     "license": "Boost 1.0",
     "dependencies": {
-        "dimgui": {
-            "version" : "~master", "path" : "./dimgui" 
-        },
-        "derelict-gl3":  ">=1.0.4",
-        "derelict-sdl2": ">=1.2.5",
-        "dyaml":         ">=0.5.0",
-        "gl3n":          "~master",
-        "gfm:math":      "==1.1.8",
-        "logger":        "==0.2.9",
-        "tharsis-prof":  "~>0.3.0"
+        "tharsis-dimgui": ">=0.1.8-alpha",
+        "derelict-gl3":   ">=1.0.4",
+        "derelict-sdl2":  ">=1.2.5",
+        "dyaml":          ">=0.5.0",
+        "gl3n":           "~master",
+        "gfm:math":       "==1.1.8",
+        "logger":         "==0.2.9",
+        "tharsis-prof":   "~>0.4.0"
     },
     "subConfigurations": {
-        "dimgui": "derelict-gl-library",
+        "tharsis-dimgui": "derelict-gl-library",
     },
     "buildTypes":
     {
