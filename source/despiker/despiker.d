@@ -43,13 +43,13 @@ public:
      *
      * If null, zone info does not matter for frame filtering.
      */
-    string filterInfo = "frame";
+    string frameInfo = "frame";
 
     /** Zones with nest level equal to this string (and matching info) are considered frames.
      *
      * If 0, zone nest level does not matter for frame filtering.
      */
-    ushort filterNestLevel = 0;
+    ushort frameNestLevel = 0;
 
     /// Despiker 'modes', i.e. what the user is doing with Despiker.
     enum Mode
@@ -350,11 +350,11 @@ public:
 private:
     /** Function passed to Backend used to filter zones to determine which zones are frames.
      *
-     * See_Also: filterInfo, filterNestLevel
+     * See_Also: frameInfo, frameNestLevel
      */
     bool frameFilter(ZoneData zone) @safe nothrow @nogc
     {
-        return (filterInfo is null || zone.info == filterInfo) &&
-               (filterNestLevel == 0 || zone.nestLevel == filterNestLevel);
+        return (frameInfo is null || zone.info == frameInfo) &&
+               (frameNestLevel == 0 || zone.nestLevel == frameNestLevel);
     }
 }
