@@ -153,12 +153,17 @@ final class OpenGL
             _logger.infof("    Vendor: %s", getVendorString());
             _logger.infof("    GLSL version: %s", getGLSLVersionString());
 
+            runtimeCheck();
+
             // parse extensions
-            _extensions = std.array.split(getExtensionsString());
+            _extensions = getExtensionsStrings();
+            runtimeCheck();
 
             _logger.infof("    Extensions: %s found", _extensions.length);
             _logger.infof("    - EXT_texture_filter_anisotropic is%s supported", EXT_texture_filter_anisotropic() ? "": " not");
             _logger.infof("    - EXT_framebuffer_object is%s supported", EXT_framebuffer_object() ? "": " not");
+            _logger.info("Extensions:");
+            _logger.info(_extensions);
             getLimits(true);
             _textureUnits = new TextureUnits(this);
 
@@ -200,35 +205,61 @@ final class OpenGL
          *
          * Returns: true if at least one OpenGL error was pending. OpenGL error status is cleared.
          */
-        bool runtimeCheck() @trusted nothrow
+        bool runtimeCheck(string file = __FILE__, int line = __LINE__) @trusted nothrow
         {
             GLint r = glGetError();
             if (r != GL_NO_ERROR)
             {
                 string errorString = getErrorString(r);
                 flushGLErrors(); // flush other errors if any
-                _logger.warning("GL error detected: ", errorString).assumeWontThrow;
+                _logger.warningf("GL error detected in runtimeCheck called "
+                                 "from file %s, line %s: ", file, line, errorString)
+                                 .assumeWontThrow;
                 return false;
             }
             return true;
         }
+
+        /// Sanitize a GL string returned by glGetString/glGetStringi.
+        string sanitizeGLString(const(char)* sZ) 
+        {
+            import core.stdc.string: strlen;
+            if (sZ is null) { return "(unknown)"; }
+            // Need to copy the string as it's const
+            char[] text = sZ[0 .. strlen(sZ)].dup;
+            if(!text.sanitizeASCIIInPlace())
+            {
+                _logger.warning("Invalid (non-ASCII) character in a GL string result");
+            }
+
+            return text.assumeUnique();
+        }
+
 
         /// Returns: OpenGL string returned by $(D glGetString).
         /// See_also: $(WEB www.opengl.org/sdk/docs/man/xhtml/glGetString.xml)
         string getString(GLenum name)
         {
             const(char)* sZ = glGetString(name);
-            if (sZ is null) { return "(unknown)"; }
+            runtimeCheck();
+            return sanitizeGLString(sZ);
+        }
 
-            // Need to copy message as it's const
-            import core.stdc.string;
-            char[] text = sZ[0 .. strlen(sZ)].dup;
-            if(!text.sanitizeASCIIInPlace())
+        /// Returns: An array of OpenGL strings returned by $(D glGetStringi).
+        /// See_also: $(WEB https://www.opengl.org/wiki/GLAPI/glGetString)
+        string[] getStrings(GLenum pname, int numStrings)
+        {
+            auto result = new string[numStrings];
+            foreach(uint i, ref str; result)
             {
-                _logger.warning("Invalid (non-ASCII) character in GL getString result");
+                const(char)* sZ = glGetStringi(pname, i);
+                // If error, return strings we got so far.
+                if(!runtimeCheck()) { return result[0 .. i]; }
+
+                str = sanitizeGLString(sZ);
             }
 
-            return text.assumeUnique();
+            return result;
         }
 
         /// Returns: OpenGL version string, can be "major_number.minor_number" or 
@@ -280,10 +311,14 @@ final class OpenGL
             return getString(GL_SHADING_LANGUAGE_VERSION);
         }
 
-        /// Returns: A huge space-separated list of OpenGL extensions.
-        string getExtensionsString()
+
+        /// Returns: An array of names of supported OpenGL extensions.
+        string[] getExtensionsStrings()
         {
-            return getString(GL_EXTENSIONS);
+            scope(exit) { runtimeCheck(); }
+            const numExtensions = getInteger(GL_NUM_EXTENSIONS, 0, true);
+            runtimeCheck();
+            return getStrings(GL_EXTENSIONS, numExtensions);
         }
 
         /// Calls $(D glGetIntegerv) and gives back the requested integer.
@@ -291,7 +326,8 @@ final class OpenGL
         /// See_also: $(WEB www.opengl.org/sdk/docs/man4/xhtml/glGet.xml).
         /// Note: It is generally a bad idea to call $(D glGetSomething) since it might stall
         ///       the OpenGL pipeline.
-        bool getInteger(GLenum pname, out int result) nothrow
+        bool getInteger(GLenum pname, out int result,
+                       string file = __FILE__, int line = __LINE__) nothrow
         {
             GLint param;
             glGetIntegerv(pname, &param);
@@ -308,7 +344,8 @@ final class OpenGL
         /// Returns: The requested integer returned by $(D glGetIntegerv) 
         ///          or defaultValue if an error occured.
         /// See_also: $(WEB www.opengl.org/sdk/docs/man4/xhtml/glGet.xml).        
-        int getInteger(GLenum pname, GLint defaultValue, bool logging)
+        int getInteger(GLenum pname, GLint defaultValue, bool logging, 
+                       string file = __FILE__, int line = __LINE__)
         {
             int result;
 
@@ -319,7 +356,10 @@ final class OpenGL
             else
             {
                 if (logging)
-                    _logger.warning("couldn't get OpenGL integer");
+                {
+                    _logger.warningf("couldn't get OpenGL integer (called from " 
+                                     "file %s, line %s): ID %s", file, line, pname);
+                }
                 return defaultValue;
             }
         }
@@ -432,8 +472,8 @@ final class OpenGL
     {
         string[] _extensions;
         TextureUnits _textureUnits;
-        int _majorVersion;
-        int _minorVersion;
+        int _majorVersion = 1;
+        int _minorVersion = 1;
         int _maxTextureSize;
         int _maxTextureUnits; // number of conventional units, deprecated
         int _maxFragmentTextureImageUnits; // max for fragment shader
@@ -444,8 +484,31 @@ final class OpenGL
 
         void getLimits(bool logging)
         {
-            _majorVersion = getInteger(GL_MAJOR_VERSION, 1, logging);
-            _minorVersion = getInteger(GL_MINOR_VERSION, 1, logging);
+            runtimeCheck();
+            // GL_MAJOR_VERSION/GL_MINOR_VERSION may not always work, so we parse version
+            // string.
+            auto verString = getVersionString().split()[0];
+ 
+            import std.format;
+            bool failedParse = false;
+            // If this can't parse the version string, _majorVersion/_minorVersion will be 1.1
+            try if(formattedRead(verString, "%s.%s", &_minorVersion, &_majorVersion) < 2)
+            {
+                failedParse = true;
+            }
+            catch(Exception e)
+            {
+                failedParse = true;
+            }
+
+            if(logging && failedParse)
+            {
+                _logger.warningf("couldn't parse OpenGL version string. "
+                                 "Assuming version %s.%s", _majorVersion, _minorVersion);
+            }
+
+            runtimeCheck();
+
             _maxTextureSize = getInteger(GL_MAX_TEXTURE_SIZE, 512, logging);
             // For other textures, add calls to:
             // GL_MAX_ARRAY_TEXTURE_LAYERS​, GL_MAX_3D_TEXTURE_SIZE​
