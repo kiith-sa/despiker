@@ -1,5 +1,4 @@
 import std.experimental.logger;
-import std.typecons: scoped;
 
 import despiker.despiker;
 import openglgui;
@@ -12,7 +11,8 @@ int main(string[] args)
 
     try
     {
-        auto gui = scoped!OpenGLGUI(log, despiker);
+        auto gui = new OpenGLGUI(log, despiker);
+        scope(exit) { destroy(gui); }
         gui.run();
     }
     catch(GUIException e)
