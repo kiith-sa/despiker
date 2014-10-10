@@ -18,8 +18,10 @@ int main(string[] args)
     catch(GUIException e)
     {
         log.error("Failed to start Despiker: ", e.msg);
-        return 1;
+        return 2;
     }
+
+    writeln("Note: write EOF (Ctrl-D on Linux) to end Despiker if directly launched");
 
     return 0;
 }
