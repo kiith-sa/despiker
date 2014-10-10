@@ -14,14 +14,8 @@ Introduction
 
 .. image:: despiker-screen.png
 
-
-.. raw:: html
-
-   <video width="600" height="400" preload="auto" autoplay controls loop poster="./docsrc/_static/despiker-preview.png">
-      <source src="./docsrc/_static/despiker.webm" type="video/webm">
-   </video>
-
-Despiker is a graphical real-time frame-based profiler for the `D programming language
+Despiker (`video <http://defenestrate.eu/docs/despiker/_static/despiker.webm>`_) is
+a graphical real-time frame-based profiler for the `D programming language
 <http://dlang.org>`_ based on the `Tharsis.prof
 <https://github.com/kiith-sa/tharsis.prof>`_ library.
 
