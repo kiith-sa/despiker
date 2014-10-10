@@ -15,6 +15,14 @@ import std.exception: assumeWontThrow, ErrnoException;
 
 import despiker.backend;
 
+// TODO: A ProfDataSource based on sockets. This may (or may not) be a bit slower than
+//       piping to stdin, but will allow despiker to run separately instead of requiring
+//       the profiled application to launch it (which is needed for the profiled
+//       application to specify a pipe to despiker's stdin).
+//       2014-10-01
+// TODO: A ProfDataSource based on reading CSV files written by tharsis.prof.
+//       Needed for storing profiling data and reading it when the game is not running.
+//       2014-10-08
 
 /** Base class for profiling data sources.
  *
@@ -24,12 +32,6 @@ import despiker.backend;
  * Note: $(B Must) be destroyed manually (or thrugh $(D std.typecons.scoped), etc.).
  *       A ProfDataSource may contain resources (threads, sockets, file handles) that
  *       must be freed.
- *
- * TODO: An implementation based on sockets. This may (or may not) be a bit slower than
- *       piping to stdin, but will allow despiker to run separately instead of requiring
- *       the profiled application to launch it (which is needed for the profiled
- *       application to specify a pipe to despiker's stdin).
- *       2014-10-01
  */
 abstract class ProfDataSource
 {
@@ -128,8 +130,8 @@ public:
         {
             if(chunk.threadId >= maxThreads)
             {
-                // TODO: Add 'ignoreIfThrows()' and use it here instead of assumeWontThrow
-                //       2014-10-02
+                // TODO: Add 'ignoreIfThrows()' and use it here (and in similar code)
+                //       instead of assumeWontThrow 2014-10-02
                 writeln("Chunk with thread ID greater or equal to 1024; no more than "
                         "1024 threads are supported. Ignoring.").assumeWontThrow;
                 continue;
