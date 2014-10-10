@@ -20,9 +20,10 @@
     },
     "buildTypes":
     {
-        "debug":   { "buildOptions": ["debugMode", "debugInfoC"] },
-        "release": { "buildOptions": ["releaseMode", "optimize", "inline", "noBoundsCheck"] },
-        "profile": { "buildOptions": ["releaseMode", "optimize", "noBoundsCheck", "debugInfoC"] },
+        "debug":           { "buildOptions": ["debugMode", "debugInfoC"] },
+        "release":         { "buildOptions": ["releaseMode", "optimize", "inline", "noBoundsCheck"] },
+        "releaseParanoid": { "buildOptions": ["optimize", "debugInfoC"] },
+        "profile":         { "buildOptions": ["releaseMode", "optimize", "noBoundsCheck", "debugInfoC"] },
     },
     "targetName" : "despiker",
 }
