@@ -527,30 +527,6 @@ private:
 /// Renders the zone graph view.
 class ViewRenderer
 {
-    // TODO: On top of view area, show a milliseconds 'ruler'
-    //       Maybe even a faint grid in the background (or rather, just vertical lines)
-    // 2014-10-03
-    //
-    // TODO: Clicking a zone will show zone name on sidebar, along with duration in msecs
-    //       *and* usecs, % of parent with 3 digits after the decimal point, start time
-    //       relative to frame, nest level, etc.
-    // 2014-10-05
-    //
-    // TODO: Have a sidebar with a number of button to set colors of zones based on some
-    //       of their properties. E.g. duration or (see below) memory allocs in zone,
-    //       memory allocs in zone per millisecond, etc.
-    // 2014-10-05
-    //
-    // TODO: Memory alloc info for each zone.
-    //       See https://bitbucket.org/infognition/dstuff/src/
-    //       Should be shown on the sidebar but also somehow in the zone.
-    // 2014-10-05
-    //
-    // TODO: Allow to select a zone and get a graph (ksysguard style) over time of time
-    //       spent in that zone. This will need to be drawn async on the side (maybe a
-    //       separate view rencerer?)
-    // 2014-10-05
-
 private:
     // Video device used to access window size, do manual rendering, etc.
     VideoDevice video_;

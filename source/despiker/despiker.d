@@ -19,9 +19,6 @@ import despiker.backend;
 import despiker.profdatasource;
 
 
-// TODO: Eventually allow viewing particular zones within frames (by name, nest level)
-//       and moving between them using previous/next. 2014-09-29
-
 /// Exception thrown at Despiker error.
 class DespikerException : Exception
 {
@@ -60,28 +57,14 @@ public:
         Manual
     }
 
-    // TODO: Make this configurable at run-time and from a config (YAML) file 2014-10-02
-    // TODO: Make accessible the number of chunks we got per frame and in GUI, add visual
-    //       warnings for both 'running behind' and 'death spiral' cases,
-    //       with buttons to quickly double/halve maxChunksPerUpdate. 2014-10-02
     /** Maximum number of profiling data chunks to receive on an update.
      *
      * Too low values may result in Despiker running behind the profiled app, but too
      * high may result in Despiker getting into a 'death spiral' when each update takes
      * longer time, during which the profiled app generates more data, which makes the
-     * next despiker longer, etc.
+     * next despiker frame longer, etc.
      */
     uint maxChunksPerUpdate = 128;
-
-    // TODO: Currently, we assume frames in all threads are 'lined up', so if we have 7
-    //       frames in thread 0 but 6 in thread 1, we assume that 'we do not yet have full
-    //       data for all 7 frames'.
-    //
-    //       We should add support for interruptions in threads or frames 'not lining up',
-    //       e.g. if we didn't receive frames 3 and 4 from thread 1, but did receive
-    //       frame 5, we correctly align frame 5 with a frame from thread 0 that occured
-    //       at the same time (today, we would assume frame 5 is the frame 3 that we
-    //       didn't receive - lining the frames up incorrectly).  2014-10-02
 
 private:
     // Despiker backend, which stores profiling data and provides access to event lists.
@@ -289,11 +272,6 @@ public:
         }
     }
 
-    // TODO: Add API for worst frame for thread 0,1,etc. (worstFrameInThread?), worst
-    //       frame by sum of all threads (worstFrameSumThreads?), and frame with worst
-    //       zone according to some filter (e.g. Tharsis: slowest RenderProcess run)
-    //       - figure out GUI for that
-    //       2014-09-29
     /** Find and view the worst frame so far.
      *
      * In 'newest frame' mode, sets mode to 'manual'.

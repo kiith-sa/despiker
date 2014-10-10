@@ -107,7 +107,8 @@ public:
         const tid = chunk.threadId;
         assert(tid <= maxThreads, "No more than 1024 threads are supported");
 
-        // If we were unaware of this thread till now, add thread state for it.
+        // If we were unaware of this thread till now, add thread state for it 
+        // (and for any missing threads with lower indices).
         while(tid >= threads_.length)
         {
             threads_.assumeSafeAppend();
@@ -116,7 +117,6 @@ public:
             {
                 chunkBuffer   = new ChunkyEventList.Chunk[defaultChunkBufferSize];
                 eventList     = ChunkyEventList(chunkBuffer);
-                // zoneGenerator = ChunkyZoneGenerator(eventList.generator);
                 zoneGenerator = ChunkyZoneGenerator(eventList.generator);
             }
         }

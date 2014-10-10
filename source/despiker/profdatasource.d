@@ -15,14 +15,6 @@ import std.exception: assumeWontThrow, ErrnoException;
 
 import despiker.backend;
 
-// TODO: A ProfDataSource based on sockets. This may (or may not) be a bit slower than
-//       piping to stdin, but will allow despiker to run separately instead of requiring
-//       the profiled application to launch it (which is needed for the profiled
-//       application to specify a pipe to despiker's stdin).
-//       2014-10-01
-// TODO: A ProfDataSource based on reading CSV files written by tharsis.prof.
-//       Needed for storing profiling data and reading it when the game is not running.
-//       2014-10-08
 
 /** Base class for profiling data sources.
  *
