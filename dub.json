@@ -13,7 +13,7 @@
         "gl3n":           "~master",
         "gfm:math":       "==1.1.8",
         "logger":         "==0.2.9",
-        "tharsis-prof":   "~>0.4.0"
+        "tharsis-prof":   "~>0.4.2"
     },
     "subConfigurations": {
         "tharsis-dimgui": "derelict-gl-library",
