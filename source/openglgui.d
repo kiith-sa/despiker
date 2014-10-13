@@ -229,7 +229,7 @@ private:
 
         // Zooming ('=' is the same key as '+' on most (at least QWERTY) keyboards).
         const zoomKb = (kb.pressed(Key.Equals) ? 1 : 0) + (kb.pressed(Key.Minus) ? -1 : 0);
-        zoomExponent_ = min(32, max(-8, zoomExponent_ + mouse.wheelYMovement + zoomKb));
+        zoomExponent_ = min(40, max(-8, zoomExponent_ + mouse.wheelYMovement + zoomKb));
         // Panning
         pan_ -= 128 * ((kb.pressed(Key.D) ? 1 : 0) + (kb.pressed(Key.A) ? -1 : 0)) / zoom;
         if(mouse.button(Mouse.Button.Right)) { pan_ += mouse.xMovement / zoom; }
@@ -716,7 +716,7 @@ public:
         const lw = layout_.viewW;
         const lh = layout_.viewH;
 
-        camera_.size(w, h);
+        camera_.size(cast(uint)w, cast(uint)h);
         // Align the camera with the view (so 0,0 is the bottom-left corner of the view).
         camera_.center = vec2(w / 2 - lx, h / 2 - ly);
         uniforms_.projection = camera_.projection;
@@ -859,7 +859,7 @@ private:
     {
         // May change or even be dynamic if we have different font sizes in future.
         enum charWidthPx = 9;
-        const space = cast(long)(zoneWidth / charWidthPx);
+        const space = cast(int)(zoneWidth / charWidthPx);
         // Smallest strings returned by labelText() are 3 chars long or empty. No point
         // drawing if we can't fit 3 chars.
         if(space < 3) { return; }
@@ -881,7 +881,7 @@ private:
      * space = Number of characters we can fit onto the zone rectangle.
      * zone  = Zone being drawn.
      */
-    string labelText(long space, ref const ZoneData zone) @system nothrow
+    string labelText(int space, ref const ZoneData zone) @system nothrow
     {
         const durMs = zone.duration * 0.0001;
         const durPc = zone.duration / cast(double)frameDuration_ * 100.0;
@@ -900,7 +900,7 @@ private:
             if(needed - space <= 7) { return "%s:%.2fms".format(info, durMs); }
 
             // Shorten the info string while still displaying milliseconds.
-            const infoSpace = max(0, space - cast(long)":0.00ms".length);
+            const infoSpace = max(0, space - cast(int)":0.00ms".length);
             const infoCut = info[0 .. min(infoSpace, info.length)];
             if(infoSpace > 0) { return "%s:%.2fms".format(infoCut, durMs); }
 

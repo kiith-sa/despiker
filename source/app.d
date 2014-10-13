@@ -2,8 +2,7 @@ import std.experimental.logger;
 
 import despiker.despiker;
 import openglgui;
-
-
+ 
 import std.stdio;
 
 void help()

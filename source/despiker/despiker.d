@@ -284,7 +284,7 @@ public:
     void worstFrame() @safe pure nothrow @nogc
     {
         // Duration of the worst frame.
-        size_t worstDuration = 0;
+        ulong worstDuration = 0;
         // Index of the worst frame.
         size_t worstFrame = 0;
         // In each frame, get the total duration for all threads, then get the max of that.
