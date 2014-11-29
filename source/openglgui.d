@@ -223,7 +223,8 @@ private:
         }
 
         // Sidebars rendering and input.
-        actionsSidebar().assumeWontThrow();
+        actionsSidebar().assumeWontThrow;
+
     }
 
     /// Get input for the view renderer (zooming and panning).
@@ -444,7 +445,9 @@ class Layout
     {
         // max() avoids impossibly small areas when the window is very small.
 
-        sidebarW = max(20, min(192, cast(int)(width.pow(0.75))));
+        import gfm.math.funcs;
+
+        sidebarW = clamp(cast(int)width.pow(0.75), 20, 192);
         sidebarH = max(20, (height - 3 * margin) / 2);
         sidebarY = max(20, margin * 2 + sidebarH);
         sidebarX = max(20, width - sidebarW - margin);
