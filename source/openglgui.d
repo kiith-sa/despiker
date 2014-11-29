@@ -842,7 +842,11 @@ private:
         foreach(v; rect)  { trisBatch_.put(Vertex(v, color)); }
         foreach(v; lines) { linesBatch_.put(Vertex(v, dark)); }
 
-        drawZoneText(zone, maxX - minX, (minX + maxX) / 2, (minY + maxY) / 2);
+        // This is drawn by imgui and is not affected by our camera, so we need to
+        // position this manually.
+        drawZoneText(zone, maxX - minX, 
+                     layout_.viewX + (minX + maxX) / 2,
+                     layout_.viewY + (minY + maxY) / 2 - 4);
     }
 
     /** Draw text on a zone rectangle.
@@ -867,7 +871,10 @@ private:
         const label = labelText(space, zone);
         const long textWidthEst = charWidthPx * label.length;
         // Don't draw if outside the view area.
-        if(centerX < 0 - textWidthEst || centerX > layout_.viewW + textWidthEst) { return; }
+        if(centerX < 0 - textWidthEst || centerX > layout_.viewX + layout_.viewW + textWidthEst)
+        {
+            return;
+        }
 
         imguiDrawText(cast(int)(centerX), cast(int)(centerY), TextAlign.center, label)
                      .assumeWontThrow;
