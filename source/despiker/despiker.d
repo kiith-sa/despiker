@@ -184,10 +184,7 @@ public:
     }
 
     /// Get the current despiker mode.
-    Mode mode() @safe pure nothrow const @nogc
-    {
-        return mode_;
-    }
+    Mode mode() @safe pure nothrow const @nogc { return mode_; }
 
     /** Move to the next frame in manual mode. If newest frame mode, acts as pause().
      *
