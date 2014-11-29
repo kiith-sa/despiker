@@ -61,7 +61,10 @@ private:
     ViewRenderer view_;
 
     // Current positions of scroll area scrollbars.
-    int sidebarScroll, sideinfoScroll;
+    int sidebarScroll, sideinfoScroll, sidevarsScroll;
+
+    // If true, the variable sidebar display will be toggled next frame.
+    bool toggleVars_;
 
     // Buffer to store goToFrame_ text input.
     char[9] goToFrameBuf_;
@@ -179,6 +182,7 @@ private:
 
         // Get mouse input and pass it to imgui.
         const mouse = input_.mouse;
+        const keyboard = input_.keyboard;
         ubyte mouseButtons;
         if(mouse.button(Mouse.Button.Left))  { mouseButtons |= MouseButton.left; }
         if(mouse.button(Mouse.Button.Right)) { mouseButtons |= MouseButton.right; }
@@ -194,7 +198,7 @@ private:
             imguiEndFrame().assumeWontThrow;
             imguiRender(width, height).assumeWontThrow;
         }
-        layout_.update(width, height);
+        layout_.update(width, height, toggleVars_ ? (!layout_.showVars) : layout_.showVars);
 
         import std.array: empty;
         auto view   = despiker_.currentFrameView;
@@ -225,6 +229,10 @@ private:
         // Sidebars rendering and input.
         actionsSidebar().assumeWontThrow;
 
+        if(layout_.showVars)
+        {
+            variablesSidebar(view).assumeWontThrow;
+        }
     }
 
     /// Get input for the view renderer (zooming and panning).
@@ -258,6 +266,7 @@ private:
         // Draws a button with a key shortcut to do the same action.
         auto button = (string text, Key key) =>
                       imguiButton(text) || input_.keyboard.pressed(key);
+
         final switch(despiker_.mode)
         {
             case Despiker.Mode.NewestFrame:
@@ -282,6 +291,7 @@ private:
                 }
                 break;
         }
+        toggleVars_ = button((layout_.showVars ? "Hide" : "Show") ~ " Variables <V>", Key.V);
     }
 
     /** Render the info sidebar.
@@ -310,6 +320,36 @@ private:
         imguiLabel("Duration: " ~ (noFrame ? "N/A" : "%.2fms".format(duration * 0.0001)));
         imguiLabel("Start: " ~ (noFrame ? "N/A" : "%.5fs".format(start * 0.0000001)));
         imguiLabel("Frames: %s".format(despiker_.frameCount));
+    }
+
+    /** Render the variables sidebar.
+     *
+     * Params:
+     *
+     * view = View of the current frame, including variables.
+     *
+     * While not nothrow, infoSidebar() should be assumed to never throw.
+     */
+    void variablesSidebar(View)(ref View view) @trusted
+    {
+        // The info sidebar.
+        with(layout_)
+        {
+            imguiBeginScrollArea("Variables", sidevarsX, sidevarsY, sidevarsW, sidevarsH,
+                                 &sidevarsScroll, guiScheme_);
+        }
+        scope(exit) { imguiEndScrollArea(); }
+
+        foreach(t, ref thread; view.threads)
+        {
+            imguiLabel("Thread %s".format(t));
+            imguiIndent();
+            foreach(var; thread.vars)
+            {
+                imguiLabel("%s: %s".format(var.name, var.variable));
+            }
+            imguiUnindent();
+        }
     }
 
     /// Get the current zoom ratio (not exponent).
@@ -431,17 +471,23 @@ class Layout
     // Size and position of the view.
     int viewW, viewH, viewX, viewY;
 
+    // Show the variables sidebar?
+    bool showVars;
+
+    // Size and position of the variables sidebar.
+    int sidevarsW, sidevarsH, sidevarsX, sidevarsY;
+
     /** Update the layout.
      *
      * Called at the beginning of a GUI update.
      *
      * Params:
      *
-     * width  = Window width.
-     * height = Window height.
-     *
+     * width    = Window width.
+     * height   = Window height.
+     * showVars = Show the variables sidebar?
      */
-    void update(int width, int height) @safe pure nothrow @nogc
+    void update(int width, int height, bool showVars) @safe pure nothrow @nogc
     {
         // max() avoids impossibly small areas when the window is very small.
 
@@ -457,7 +503,19 @@ class Layout
         sideinfoX = sidebarX;
         sideinfoY = margin;
 
-        viewX = margin;
+        this.showVars = showVars;
+        if(showVars)
+        {
+            sidevarsX = sidevarsY = margin;
+            sidevarsW = clamp(cast(int)width.pow(0.8), 20, 448);
+            sidevarsH = max(20, height - 2 * margin);
+        }
+        else
+        {
+            sidevarsH = sidevarsW = sidevarsX = sidevarsY = 0;
+        }
+
+        viewX = margin + sidevarsX + sidevarsW + margin;
         viewY = margin;
         viewW = max(20, width - sidebarW - 2 * margin - viewX);
         viewH = max(20, height - 2 * margin);
