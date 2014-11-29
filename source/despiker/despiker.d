@@ -28,6 +28,27 @@ class DespikerException : Exception
     }
 }
 
+
+/// View of execution in the current frame provided by Despiker.currentFrameView().
+struct FrameView(Events)
+{
+    /// View of execution in one thread.
+    struct ThreadFrameView
+    {
+        /// Info about execution in this thread during this frame (e.g. start, duration).
+        FrameInfo frameInfo;
+        /// Profiling events recorded during this frame in this thread.
+        Events events;
+        /// Range of all variables recorded during this frame in this thread.
+        VariableRange!Events vars;
+        /// Range of all zones recorded during this frame in this thread.
+        ZoneRange!Events zones;
+    }
+
+    /// View of each thread during this frame.
+    ThreadFrameView[] threads;
+}
+
 /** Despiker front-end, designed to be trivially controlled through a GUI.
  *
  * The Despiker class provides methods that should directly be called from the GUI
@@ -79,8 +100,8 @@ private:
     // Readability alias.
     alias Events = ChunkyEventList.Slice;
 
-    // Zone ranges (one per thread) currently being viewed in the GUI.
-    Tuple!(FrameInfo, ZoneRange!Events)[] view_;
+    // View of the frame currently being viewed (events recorded in each thread, etc.).
+    FrameView!Events view_;
 
     // In manual mode, this is the index of the frame we're currently viewing.
     size_t manualFrameIndex_ = 0;
@@ -107,8 +128,8 @@ public:
             assert(false, "Unexpected exception in Despiker constructor");
         }
 
-        backend_    = new Backend(&frameFilter);
-        view_ = [];
+        backend_ = new Backend(&frameFilter);
+        view_    = view_.init;
     }
 
     /// Destroy the Despiker. Must be destroyed manually to free any threads, files, etc.
@@ -141,13 +162,13 @@ public:
         // (also, manualFrameIndex (0 by default) would be out of range in that case).
         if(threadCount == 0 || frameCount == 0)
         {
-            view_ = [];
+            destroy(view_.threads);
             return;
         }
 
         // View the most recent frame zone for which we have profiling data from all threads.
-        view_.assumeSafeAppend();
-        view_.length = threadCount;
+        view_.threads.assumeSafeAppend();
+        view_.threads.length = threadCount;
         foreach(thread; 0 .. threadCount)
         {
             FrameInfo frame;
@@ -163,24 +184,27 @@ public:
                     break;
             }
 
-            // Add to view a zone range to generate zones of viewed frame for this thread.
-            Events events = backend_.events(thread).slice(frame.extents);
-            view_[thread] = tuple(frame, ZoneRange!Events(events));
+            with(view_.threads[thread])
+            {
+                frameInfo = frame;
+                events    = backend_.events(thread).slice(frame.extents);
+                vars      = VariableRange!Events(events);
+                // Range of zones in the viewed frame for this thread.
+                zones     = ZoneRange!Events(events);
+            }
         }
     }
 
-    /** Get the current 'view'; ranges to generate zones of current frame in profiled threads.
+    /** Get the 'view' of the current frame.
      *
-     * Used by the GUI to generate zones to display.
+     * Used by the GUI to get zones, variables, etc. to display.
      *
-     * Returns: An array of frame infos tupled with zone ranges. view()[0][1] is a range
-     *          of zones in currently viewed frame in profiled thread 0, view()[1][1] in
-     *          thread 1, and so on. The zone ranges are const, and must be copied/save()d
-     *          for iteration.
+     * Returns: A 'frame view' including profiling events, zones and variables recorded
+     *          in each profiled thread during the current frame.
      */
-    const(Tuple!(FrameInfo, ZoneRange!Events))[] view() @safe pure nothrow const @nogc
+    FrameView!Events currentFrameView() @safe pure nothrow const
     {
-        return view_;
+        return FrameView!Events(view_.threads.dup);
     }
 
     /// Get the current despiker mode.

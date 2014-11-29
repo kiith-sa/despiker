@@ -197,21 +197,26 @@ private:
         layout_.update(width, height);
 
         import std.array: empty;
-        const view   = despiker_.view;
-        const noView = view.empty;
+        auto view   = despiker_.currentFrameView;
+        const noView = view.threads.empty;
 
         if(!noView)
         {
             // Get the real start/end time of the frame containing execution in all threads.
-            const start = view.map!(v => v[0].startTime).reduce!min.assumeWontThrow;
-            const end   = view.map!(v => v[0].endTime).reduce!max.assumeWontThrow;
+            const start = view.threads.map!((ref t) => t.frameInfo.startTime)
+                                      .reduce!min.assumeWontThrow;
+            const end   = view.threads.map!((ref t) => t.frameInfo.endTime)
+                                      .reduce!max.assumeWontThrow;
             const duration = end - start;
 
             // Get input for the ViewRenderer (zooming, panning).
             getViewInput();
             // Draw the view first so any widgets are on top of it.
             view_.startDrawing(zoom, pan_, start, duration);
-            foreach(ref threadView; view) { view_.drawThread(threadView[1].save); }
+            foreach(ref thread; view.threads)
+            {
+                view_.drawThreadZones(thread.zones.save); 
+            }
             view_.endDrawing();
 
             infoSidebar(start, duration).assumeWontThrow;
@@ -620,7 +625,7 @@ private:
     // Minimum and maximum height of a nesting level (zone + gap above it).
     enum minNestLevelHeight = 8; enum maxNestLevelHeight = 24;
 
-    // Y offset of zones in currently drawn thread. Increases between drawThread() calls.
+    // Y offset of zones in currently drawn thread. Increases between drawThreadZones() calls.
     uint yOffset_;
 
     // Horizontal panning of the view (passed to startDrawing()).
@@ -743,17 +748,17 @@ public:
 
     /** Draw zones executed during current frame in one thread.
      *
-     * Must be called between startDrawing() and endDrawing(). The first drawThread call draws
+     * Must be called between startDrawing() and endDrawing(). The first drawThreadZones call draws
      * zones from thread 0, the second from thread 1, etc.
      *
      * Params:
      *
      * zones = Zone range of all zones executed during the frame in the thread.
      */
-    void drawThread(ZRange)(ZRange zones) @safe nothrow
+    void drawThreadZones(ZRange)(ZRange zones) @safe nothrow
         if(isInputRange!ZRange && is(ElementType!ZRange == ZoneData))
     {
-        assert(state_ == State.Drawing, "drawThread() called without calling startDrawing()");
+        assert(state_ == State.Drawing, "drawThreadZones() called without calling startDrawing()");
 
         uint maxNestLevel = 0;
         foreach(zone; zones)
@@ -787,7 +792,7 @@ private:
         return max(minNestLevelHeight, min(maxNestLevelHeight, layout_.viewH / 32));
     }
 
-    /** Draw one zone (called by drawThread).
+    /** Draw one zone (called by drawThreadZones).
      *
      * Params:
      *
