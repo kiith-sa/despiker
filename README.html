@@ -348,9 +348,8 @@ sporadic development until second half of 2015.</p>
 <div class="section" id="introduction">
 <h1>Introduction</h1>
 <img alt="despiker-screen.png" src="despiker-screen.png" />
-<video width="600" height="400" preload="auto" autoplay controls loop poster="./docsrc/_static/despiker-preview.png">
-   <source src="./docsrc/_static/despiker.webm" type="video/webm">
-</video><p>Despiker is a graphical real-time frame-based profiler for the <a class="reference external" href="http://dlang.org">D programming language</a> based on the <a class="reference external" href="https://github.com/kiith-sa/tharsis.prof">Tharsis.prof</a> library.</p>
+<p>Despiker (<a class="reference external" href="http://defenestrate.eu/docs/despiker/_static/despiker.webm">video</a>) is
+a graphical real-time frame-based profiler for the <a class="reference external" href="http://dlang.org">D programming language</a> based on the <a class="reference external" href="https://github.com/kiith-sa/tharsis.prof">Tharsis.prof</a> library.</p>
 <p>A frame-based profiler is a specialized profiling tool for interactive programs such as
 games, hence <em>frame</em> - an iteration of an event loop.  Unlike a traditional profiler,
 which aggregates time spent in various parts of code, a frame-based profiler keeps track
@@ -390,10 +389,11 @@ especially if you want that problem solved <em>now</em> instead of <em>in a few 
 <ul class="simple">
 <li><a class="reference external" href="http://defenestrate.eu/docs/despiker/tutorials/getting_started.html">Tutorial</a>.</li>
 <li>(Somewhat, see above) cross-platform. Should work at least on Linux, Windows and OSX.</li>
-<li>Profiles a game in real-time, as it runs.</li>
+<li>Can profile a game in real-time as it runs, or afterwards, using dumped profiling data.</li>
 <li>Allows the user to move forward and backward between frames</li>
 <li>Can be used to profile multi-threaded code (using one Tharsis.prof <a class="reference external" href="http://defenestrate.eu/docs/tharsis.prof/tharsis.prof.profiler.html">Profiler</a> per thread,
 as long as frames are consistent in all profiled threads.</li>
+<li>Can view variable values recorded by Tharsis.prof.</li>
 <li>Quick button to find the slowest frame (yes, not very sophisticated for now).</li>
 <li>GUI and main functionality are separate to make it easy to write new GUI frontends.</li>
 <li>GUI can be controlled almost fully from keyboard.</li>

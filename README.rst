@@ -75,11 +75,12 @@ Features
 
 * `Tutorial <http://defenestrate.eu/docs/despiker/tutorials/getting_started.html>`_.
 * (Somewhat, see above) cross-platform. Should work at least on Linux, Windows and OSX.
-* Profiles a game in real-time, as it runs.
+* Can profile a game in real-time as it runs, or afterwards, using dumped profiling data.
 * Allows the user to move forward and backward between frames 
 * Can be used to profile multi-threaded code (using one Tharsis.prof `Profiler
   <http://defenestrate.eu/docs/tharsis.prof/tharsis.prof.profiler.html>`_ per thread,
   as long as frames are consistent in all profiled threads.
+* Can view variable values recorded by Tharsis.prof.
 * Quick button to find the slowest frame (yes, not very sophisticated for now).
 * GUI and main functionality are separate to make it easy to write new GUI frontends.
 * GUI can be controlled almost fully from keyboard.
