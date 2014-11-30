@@ -3,6 +3,7 @@ import std.experimental.logger;
 import despiker.despiker;
 import openglgui;
  
+import std.array;
 import std.stdio;
 
 void help()
@@ -15,11 +16,17 @@ Copyright (C) 2014 Ferdinand Majerech
 
 Usage: despiker [--help] [--frameInfo] [--frameNestLevel]
 
-WARNING: You almost certainly don't want to launch Despiker directly. Despiker
-         expects to receive raw profiling data through its standard input. This
-         profiling data is usually sent using the the DespikerSender API in
-         Tharsis.prof library, which is also used to launch Despiker. Note that
-         support for stand-alone running Despiker may be added in future.
+WARNING: By default, Despiker expects to receive raw profiling data through its 
+         standard input. This profiling data is usually sent using the the 
+         DespikerSender API in Tharsis.prof library, which is also used to 
+         launch Despiker. See the -r/--file-raw option for reading profiling 
+         data from a file itself.
+
+Examples:
+    despiker -rprofile0.raw.prof -rprofile1.raw.prof
+                                 Load profiling data for 2 files storing
+                                 profiling outputs of Tharsis.prof Profilers in 
+                                 2 separate threads.
 
 Options:
     -h, --help                   Show this help message.
@@ -35,9 +42,17 @@ Options:
                                  Only zones passing through all frame filters 
                                  (see --frameInfo) are considered frames.
                                  Default: 0
+    -r, --file-raw <file>        Instead of getting profiling input through 
+                                 standard input, read raw profiling data dumped
+                                 to specified file. If using multiple profilers
+                                 for separate threads, use this option multiple 
+                                 times, with filenames of each thread's 
+                                 profiling data.
 -------------------------------------------------------------------------------
 )");
 }
+
+
 
 /// Program entry point.
 int main(string[] args)
@@ -45,6 +60,7 @@ int main(string[] args)
     string frameInfo = "frame";
     ushort frameNestLevel = 0;
     bool wantHelp = false;
+    string[] rawFiles;
 
     import std.getopt;
     import std.conv: ConvException;
@@ -56,7 +72,8 @@ int main(string[] args)
                std.getopt.config.caseSensitive,
                "frameInfo|i",      &frameInfo,
                "frameNestLevel|n", &frameNestLevel,
-               "help|h",           &wantHelp);
+               "help|h",           &wantHelp,
+               "file-raw|r",       &rawFiles);
     }
     catch(ConvException e)
     {
@@ -81,13 +98,21 @@ int main(string[] args)
     auto log = stdlog;
 
     import despiker.profdatasource: ProfDataSource,
+                                    ProfDataSourceRaw,
                                     ProfDataSourceStdin,
                                     ProfDataSourceException;
 
     ProfDataSource dataSource;
     try
     {
+        if(rawFiles.empty)
+        {
+            dataSource = new ProfDataSourceStdin();
+        }
+        else
+        {
             dataSource = new ProfDataSourceRaw(rawFiles);
+        }
     }
     catch(ProfDataSourceException e)
     {
