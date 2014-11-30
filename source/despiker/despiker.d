@@ -109,25 +109,18 @@ private:
 public:
     /** Construct the Despiker.
      *
+     * Params:
+     *
+     * dataSource = Profiling data source (e.g. from stdin or a file).
+     * 
+     *
      * Throws:
      *
      * DespikerException on failure.
      */
-    this() @trusted
+    this(ProfDataSource dataSource) @trusted
     {
-        try
-        {
-            dataSource_ = new ProfDataSourceStdin();
-        }
-        catch(ProfDataSourceException e)
-        {
-            throw new DespikerException("Failed to initialize Despiker: ", e.msg);
-        }
-        catch(Exception e)
-        {
-            assert(false, "Unexpected exception in Despiker constructor");
-        }
-
+        dataSource_ = dataSource;
         backend_ = new Backend(&frameFilter);
         view_    = view_.init;
     }

@@ -77,11 +77,28 @@ int main(string[] args)
         return 0;
     }
 
-    auto despiker = new Despiker();
+
+    auto log = stdlog;
+
+    import despiker.profdatasource: ProfDataSource,
+                                    ProfDataSourceStdin,
+                                    ProfDataSourceException;
+
+    ProfDataSource dataSource;
+    try
+    {
+            dataSource = new ProfDataSourceRaw(rawFiles);
+    }
+    catch(ProfDataSourceException e)
+    {
+        log.error("Failed to initialize profiling data source ", e.msg);
+        return 3;
+    }
+
+    auto despiker = new Despiker(dataSource);
     scope(exit) { destroy(despiker); }
     despiker.frameInfo = frameInfo == "NULL" ? null : frameInfo;
     despiker.frameNestLevel = frameNestLevel;
-    auto log = stdlog;
 
     try
     {
