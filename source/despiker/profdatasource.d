@@ -195,3 +195,114 @@ private:
         }
     }
 }
+
+/** A profiling data source that reads raw profiling data from files.
+ *
+ * To use this, despiker can be launched manually with the ``-r`` parameter to specify
+ * the raw files.
+ *
+ * The files can be created simply by dumping profile data from a file.
+ *
+ * Example:
+ * --------------------
+ * // Dumping profile data from multiple profilers, where each profiler is used to 
+ * // profile one thread:
+ *
+ * // Profiler[] threadProfilers;
+ * foreach(threadIdx, threadProfiler; threadProfilers)
+ * {
+ *     auto file = File("profile%s.raw.prof".format(threadIdx), "wb");
+ *     file.rawWrite(threadProfiler.profileData);
+ * }
+ * --------------------
+ *
+ */
+class ProfDataSourceRaw: ProfDataSource
+{
+    import std.concurrency;
+
+private:
+    /** Background thread that reads profiling data that appears in stdin and sends it to main
+     * thread.
+     */
+    Tid readerTid_;
+
+public:
+    /** Construct a ProfDataSourceRaw.
+     *
+     * Params:
+     *
+     * filenames = Filenames of profile data files for profiled threads.
+     *
+     * Throws:
+     *
+     * ProfDataSourceException on failure.
+     */
+    this(string[] filenames) @system
+    {
+        try
+        {
+            // Start spawnedFunc in a new thread.
+            readerTid_ = spawn(&reader, thisTid, filenames.idup);
+        }
+        catch(Exception e)
+        {
+            throw new ProfDataSourceException("Failed to init ProfDataSourceRaw: ",e.msg);
+        }
+    }
+
+    /// Destroy the data source. Must be called by the user.
+    ~this() @system nothrow { }
+
+    override bool receiveChunk(out ProfileDataChunk chunk) @system nothrow
+    {
+        // while() because if we ignore any chunk (thread idx over maxThreads), we try
+        // to receive the next chunk.
+        while(receiveTimeout(dur!"msecs"(0),
+              (ProfileDataChunk c) { chunk = c; },
+              (Variant v) { assert(false, "Received unknown type"); }).assumeWontThrow)
+        {
+            if(chunk.threadId >= maxThreads)
+            {
+                // TODO: Add 'ignoreIfThrows()' and use it here (and in similar code)
+                //       instead of assumeWontThrow 2014-10-02
+                writeln("Chunk with thread ID greater or equal to 1024; no more than "
+                        "1024 threads are supported. Ignoring.").assumeWontThrow;
+                continue;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+private:
+    /** The reader thread - reads profile data from files and sends it to the main thread.
+     *
+     * Params:
+     *
+     * owner     = Tid of the owner thread.
+     * filenames = Filenames of profile data files for profiled threads.
+     */
+    static void reader(Tid owner, immutable(string[]) filenames)
+    {
+        import std.file;
+        try
+        {
+            import std.algorithm, std.array;
+            foreach(uint threadIdx, name; filenames)
+            {
+                send(owner, ProfileDataChunk(threadIdx, cast(immutable(ubyte)[])read(name)));
+            }
+        }
+        catch(FileException e)   { writeln("Failed to read profiling data: ", e.msg); }
+        // Be sure to handle the case when the main thread is terminated but we don't get
+        // the quit message (e.g. on an error in the main thread?)
+        catch(OwnerTerminated e) { writeln("Failed to read profiling data: ", e.msg); }
+        catch(ErrnoException e)  { writeln("Failed to read profiling data: ", e.msg); }
+        catch(Throwable e)
+        {
+            writeln("ProfDataSourceStdin: unexpected exception in reader thread:\n", e);
+        }
+    }
+}
