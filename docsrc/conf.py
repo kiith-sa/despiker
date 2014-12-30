@@ -103,8 +103,15 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
+
+# import Cloud
+import cloud_sptheme as csp
+
 # The 'cloud' theme can be found in debian repos (search 'python sphinx')
 html_theme = 'redcloud'
+
+# set the theme path to point to cloud's theme data
+html_theme_path = [csp.get_theme_dir()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
