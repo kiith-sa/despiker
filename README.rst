@@ -2,6 +2,9 @@
 Despiker 0.1
 ============
 
+.. image:: https://raw.githubusercontent.com/kiith-sa/despiker/master/code.dlang.org-shield.png
+   :target: http://code.dlang.org
+
 **Note**: while somewhat usable, Despiker is extremely experimental and unstable. For
 example, at the moment Despiker *does not* handle invalid profiling data and will crash
 with an assertion failure if it receives such data. Also, Despiker is likely to see only 
