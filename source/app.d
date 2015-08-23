@@ -95,7 +95,7 @@ int main(string[] args)
     }
 
 
-    auto log = stdlog;
+    auto log = sharedLog;
 
     import despiker.profdatasource: ProfDataSource,
                                     ProfDataSourceRaw,

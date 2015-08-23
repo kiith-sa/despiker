@@ -708,7 +708,7 @@ public:
      * log    = Main log.
      * layout = GUI layout used for extents of the view.
      */
-    this(VideoDevice video, Logger log, Layout layout) @safe nothrow
+    this(VideoDevice video, Logger log, Layout layout) @trusted nothrow
     {
         video_  = video;
         log_    = log;

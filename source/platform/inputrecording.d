@@ -162,7 +162,7 @@ private:
      * input        = Source of input to record (e.g. Keyboard or Mouse).
      * recordedData = Sink to write recorded data to if recorder runs out of space/
      */
-    static void record(Input)(ref Recorder!Input recorder, Input input, ref Array!ubyte recordedData)
+    static void record(Input)(ref Recorder!Input recorder, const Input input, ref Array!ubyte recordedData)
         @system
     {
         if(recorder.notEnoughSpace)
