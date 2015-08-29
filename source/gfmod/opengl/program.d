@@ -121,7 +121,7 @@ final class GLProgram
 
             auto sourceLines = source.splitLines();
             _gl = gl;
-            bool present[5];
+            bool[5] present;
 
             // from GLSL spec: "Each number sign (#) can be preceded in its line only by
             //                  spaces or horizontal tabs."
