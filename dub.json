@@ -10,9 +10,8 @@
         "derelict-gl3":   ">=1.0.4",
         "derelict-sdl2":  ">=1.2.5",
         "dyaml":          ">=0.5.0",
-        "gl3n":           ">=1.1.0",
+        "gl3n":           ">=1.2.0",
         "gfm:math":       "~>2.3.4",
-        "logger":         "==0.2.9",
         "tharsis-prof":   "~>0.5.2"
     },
     "buildTypes":
